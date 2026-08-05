@@ -1,0 +1,13 @@
+experiment:
+  name: ieee_cis_catboost_baseline
+  random_state: 42
+
+data:
+  sample: false
+  nrows: null
+
+model:
+  learning_rate: 0.05
+  depth: 8
+  iterations: 1000
+  eval_metric: AUC
