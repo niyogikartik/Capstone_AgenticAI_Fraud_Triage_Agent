@@ -1,0 +1,20 @@
+# Secrets
+.env
+
+# Large raw/derived data (share separately, e.g. Google Drive/Kaggle link)
+Data/*.csv
+Data/*.cbm
+model_output/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+Thumbs.db

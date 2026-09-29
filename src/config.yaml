@@ -1,0 +1,20 @@
+# Data an Storage configurations
+data:
+  train_ID_file_path: 'Data/train_identity.csv'
+  train_transaction_file_path: 'Data/train_transaction.csv'
+  test_ID_file_path: 'Data/test_identity.csv'
+  test_transaction_file_path: 'Data/test_transaction.csv' 
+  nrows: 1000  # set to null to load the full dataset
+
+storage:
+  output_dir: "model_output"
+
+# Toggle which pipeline scripts should be executed by run_pipeline.py
+pipeline:
+  run_01_data_ingestion.py: True
+  run_02_feature_eng.py: False
+  run_03_final_dataset_for_training.py: False
+  run_04_EDA.py: False
+  run_05_gnn_embedder.py: False
+  run_06_catboost_model.py: False
+  run_07_shap_analysis.py: False
