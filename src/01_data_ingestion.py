@@ -1,15 +1,19 @@
 import pandas as pd
 import yaml
+from pathlib import Path
 
-with open("config.yaml", "r") as f:
+# Resolve relative to the project root, not the current working directory
+CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)
+print(f"Loaded config from {CONFIG_PATH}; nrows={config['data'].get('nrows')}")
 
 def load_and_merge_train_data():
     train_ID_file_path = config['data']['train_ID_file_path']
     train_transaction_file_path = config['data']['train_transaction_file_path']
     nrows = config['data'].get('nrows')
-    df_train_ID = pd.read_csv(train_ID_file_path, nrows=nrows)
-    df_train_transaction = pd.read_csv(train_transaction_file_path, nrows=nrows)
+    df_train_ID = pd.read_csv(train_ID_file_path, nrows=nrows, compression='gzip')
+    df_train_transaction = pd.read_csv(train_transaction_file_path, nrows=nrows, compression='gzip')
     df_train_merged = pd.merge(df_train_transaction, df_train_ID, on='TransactionID', how='left')
     print(f"Merged dataset shape: {df_train_merged.shape}")
     df_train_merged.head()
@@ -19,8 +23,8 @@ def load_and_merge_test_data():
     test_ID_file_path = config['data']['test_ID_file_path']
     test_transaction_file_path = config['data']['test_transaction_file_path']
     nrows = config['data'].get('nrows')
-    df_test_ID = pd.read_csv(test_ID_file_path, nrows=nrows)
-    df_test_transaction = pd.read_csv(test_transaction_file_path, nrows=nrows)
+    df_test_ID = pd.read_csv(test_ID_file_path, nrows=nrows, compression='gzip')
+    df_test_transaction = pd.read_csv(test_transaction_file_path, nrows=nrows, compression='gzip')
     df_test_merged = pd.merge(df_test_transaction, df_test_ID, on='TransactionID', how='left')
     print(f"Merged dataset shape: {df_test_merged.shape}")
     df_test_merged.head()

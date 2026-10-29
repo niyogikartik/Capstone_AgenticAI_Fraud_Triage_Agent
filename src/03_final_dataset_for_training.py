@@ -90,4 +90,5 @@ def extract_temporal_and_cyclical_features(df_merged):
     #final dataset
     print(df_merged.columns.tolist())
     print(f"The final dataset has {(df_merged.shape)} features")
+    
     return df_merged

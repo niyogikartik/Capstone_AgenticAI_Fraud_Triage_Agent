@@ -91,7 +91,8 @@ def visualize_roc_curve(y_val, y_pred_proba_tuned, roc_auc_tuned):
     plt.grid(True)
     plt.show()
 
-def get_feature_importance(clf_tuned, tabular_feature_names):
+def get_feature_importance(clf_tuned, tabular_feature_names, output_dir=None):
+    from pathlib import Path
     import pandas as pd
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -109,6 +110,12 @@ def get_feature_importance(clf_tuned, tabular_feature_names):
     feature_importance_tuned_df = pd.DataFrame({'Feature': all_feature_names_refined, 'Importance': importances_tuned})
     feature_importance_tuned_df = feature_importance_tuned_df.sort_values(by='Importance', ascending=False).reset_index(drop=True)
 
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        feature_importance_tuned_df.to_csv(output_dir / "feature_importance.csv", index=False)
+        print(f"Saved feature importance to {output_dir / 'feature_importance.csv'}")
+
     # Visualize top 20 features
     plt.figure(figsize=(10, 8))
     sns.barplot(x='Importance', y='Feature', hue='Feature', data=feature_importance_tuned_df.head(20), palette='viridis', legend=False)
@@ -119,8 +126,16 @@ def get_feature_importance(clf_tuned, tabular_feature_names):
     plt.show()
     return feature_importance_tuned_df
 
-def calculate_SHAP_values(clf_tuned, X_val_refined):
+def calculate_SHAP_values(clf_tuned, X_val_refined, y_val, y_pred_tuned=None, threshold=0.86,
+                          feature_names=None, output_dir=None):
+    from pathlib import Path
+    import numpy as np
+    import pandas as pd
     import shap
+
+    # Fall back to thresholding the model's probabilities when labels aren't supplied
+    if y_pred_tuned is None:
+        y_pred_tuned = (clf_tuned.predict_proba(X_val_refined)[:, 1] >= threshold).astype(int)
 
     # Initialize the explainer with the tuned model
     explainer_tuned = shap.TreeExplainer(clf_tuned)
@@ -154,9 +169,29 @@ def calculate_SHAP_values(clf_tuned, X_val_refined):
     print(f"Tuned TN Count: {len(X_val_refined_tn)}")
     print(f"Tuned FN Count: {len(X_val_refined_fn)}")
 
+    if output_dir is not None:
+        if feature_names is None:
+            feature_names = [f'f{i}' for i in range(X_val_refined.shape[1])]
+
+        parts = []
+        for label, mask in (('TP', mask_tp_tuned), ('FP', mask_fp_tuned), ('FN', mask_fn_tuned)):
+            part = pd.DataFrame(
+                shap_values_tuned.values[mask], columns=[f'SHAP_{n}' for n in feature_names]
+            )
+            part.insert(0, 'Category', label)
+            part.insert(1, 'Val_Index', np.flatnonzero(mask))
+            parts.append(part)
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        shap_path = output_dir / 'Validation_TP_FP_FN.csv'
+        pd.concat(parts, ignore_index=True).to_csv(shap_path, index=False)
+        print(f"Saved TP/FP/FN SHAP values to {shap_path}")
+
     return shap_values_tuned, shap_values_tuned_tp, shap_values_tuned_fp, shap_values_tuned_tn, shap_values_tuned_fn
 
-def calcluate_tuned_threshold(y_pred_proba_tuned, y_val, threshold=0.86):
+def calcluate_tuned_threshold(y_pred_proba_tuned, y_val, threshold=0.86, output_dir="model_output"):
+    from pathlib import Path
     import numpy as np
     import pandas as pd
     from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
@@ -190,49 +225,52 @@ def calcluate_tuned_threshold(y_pred_proba_tuned, y_val, threshold=0.86):
             'FN/TN Ratio': fn_tn_ratio
         })
 
-        tuned_threshold_metrics_df = pd.DataFrame(metrics_list_tuned)
-        print(tuned_threshold_metrics_df.head())
+    tuned_threshold_metrics_df = pd.DataFrame(metrics_list_tuned)
+    print(tuned_threshold_metrics_df.head())
 
-        tuned_threshold_metrics_df.to_csv('/content/drive/MyDrive/Threshold_metrics_v2.csv', index=False)
-        print('Tuned threshold metrics successfully exported to /content/drive/MyDrive/Threshold_metrics_v2.csv')
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    threshold_path = output_dir / 'Threshold_metrics_v2.csv'
+    tuned_threshold_metrics_df.to_csv(threshold_path, index=False)
+    print(f'Tuned threshold metrics successfully exported to {threshold_path}')
 
-        #Plot threshold 
-        import matplotlib.pyplot as plt
+    #Plot threshold
+    import matplotlib.pyplot as plt
 
-        fig, axes = plt.subplots(3, 1, figsize=(12, 18))
+    fig, axes = plt.subplots(3, 1, figsize=(12, 18))
 
-        # Plot 1: Counts
-        axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['TN'], label='TN', color='blue')
-        axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FP'], label='FP', color='red')
-        axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FN'], label='FN', color='orange')
-        axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['TP'], label='TP', color='green')
-        axes[0].set_title('Confusion Matrix Counts vs. Threshold')
-        axes[0].set_xlabel('Threshold')
-        axes[0].set_ylabel('Count')
-        axes[0].legend()
-        axes[0].grid(True)
+    # Plot 1: Counts
+    axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['TN'], label='TN', color='blue')
+    axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FP'], label='FP', color='red')
+    axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FN'], label='FN', color='orange')
+    axes[0].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['TP'], label='TP', color='green')
+    axes[0].set_title('Confusion Matrix Counts vs. Threshold')
+    axes[0].set_xlabel('Threshold')
+    axes[0].set_ylabel('Count')
+    axes[0].legend()
+    axes[0].grid(True)
 
-        # Plot 2: Metrics
-        axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['Precision'], label='Precision', color='blue')
-        axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['Recall'], label='Recall', color='green')
-        axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['F1-Score'], label='F1-Score', color='orange')
-        axes[1].set_title('Precision, Recall, and F1-Score vs. Threshold')
-        axes[1].set_xlabel('Threshold')
-        axes[1].set_ylabel('Score')
-        axes[1].legend()
-        axes[1].grid(True)
+    # Plot 2: Metrics
+    axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['Precision'], label='Precision', color='blue')
+    axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['Recall'], label='Recall', color='green')
+    axes[1].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['F1-Score'], label='F1-Score', color='orange')
+    axes[1].set_title('Precision, Recall, and F1-Score vs. Threshold')
+    axes[1].set_xlabel('Threshold')
+    axes[1].set_ylabel('Score')
+    axes[1].legend()
+    axes[1].grid(True)
 
-        # Plot 3: Ratios
-        axes[2].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FP/TP Ratio'], label='FP/TP Ratio', color='red')
-        axes[2].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FN/TN Ratio'], label='FN/TN Ratio', color='purple')
-        axes[2].set_title('FP/TP and FN/TN Ratios vs. Threshold')
-        axes[2].set_xlabel('Threshold')
-        axes[2].set_ylabel('Ratio (Log Scale)')
-        axes[2].set_yscale('log')
-        axes[2].legend()
-        axes[2].grid(True)
+    # Plot 3: Ratios
+    axes[2].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FP/TP Ratio'], label='FP/TP Ratio', color='red')
+    axes[2].plot(tuned_threshold_metrics_df['Threshold'], tuned_threshold_metrics_df['FN/TN Ratio'], label='FN/TN Ratio', color='purple')
+    axes[2].set_title('FP/TP and FN/TN Ratios vs. Threshold')
+    axes[2].set_xlabel('Threshold')
+    axes[2].set_ylabel('Ratio (Log Scale)')
+    axes[2].set_yscale('log')
+    axes[2].legend()
+    axes[2].grid(True)
 
-        plt.tight_layout()
-        plt.show()
-        
-        return tuned_threshold_metrics_df
+    plt.tight_layout()
+    plt.show()
+
+    return tuned_threshold_metrics_df

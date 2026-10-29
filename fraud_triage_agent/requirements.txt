@@ -1,0 +1,11 @@
+pandas
+numpy
+faiss-cpu
+pydantic>=2
+streamlit
+langchain
+langgraph
+langsmith
+langchain-openai
+python-dotenv
+pytest

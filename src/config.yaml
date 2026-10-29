@@ -1,10 +1,10 @@
 # Data an Storage configurations
 data:
-  train_ID_file_path: 'Data/train_identity.csv'
-  train_transaction_file_path: 'Data/train_transaction.csv'
-  test_ID_file_path: 'Data/test_identity.csv'
-  test_transaction_file_path: 'Data/test_transaction.csv' 
-  nrows: 1000  # set to null to load the full dataset
+  train_ID_file_path: 'Data/train_identity.csv.gz'
+  train_transaction_file_path: 'Data/train_transaction.csv.gz'
+  test_ID_file_path: 'Data/test_identity.csv.gz'
+  test_transaction_file_path: 'Data/test_transaction.csv.gz' 
+  nrows: 100  # set to null to load the full dataset
 
 storage:
   output_dir: "model_output"
@@ -18,3 +18,13 @@ pipeline:
   run_05_gnn_embedder.py: False
   run_06_catboost_model.py: False
   run_07_shap_analysis.py: False
+
+#Default values for various parameters
+defaults:
+  random_seed: 42
+  test_size: 0.2
+  n_folds: 5
+  learning_rate: 0.01
+  batch_size: 32
+  num_epochs: 10
+  risk_threshold: 0.86
